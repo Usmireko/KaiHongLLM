@@ -1,0 +1,220 @@
+--- tools/closed_loop_infer_run.py
++++ tools/closed_loop_infer_run.py
+@@ -1,6 +1,7 @@
+def read_lines_tail(path: Optional[Path], max_lines: int = 200, max_total_chars: int = 20_000) -> List[str]:
+     if not path or not path.exists():
+         return []
+@@ -XX,6 +XX,16 @@
+     return lines
+ 
++
++def pick_existing(paths: List[Path]) -> Optional[Path]:
++    """Return the first existing file from a list of candidate paths."""
++    for p in paths:
++        try:
++            if p and p.exists():
++                return p
++        except Exception:
++            continue
++    return None
++
+ def build_user_message(
+@@ -YYYY,10 +YYYY,13 @@
+     metrics_rows: List[List[str]],
+     events_rows: List[Dict[str, Any]],
+     proc_lines: List[str],
+     dmesg_lines: List[str],
+     hilog_lines: List[str],
+-    run_window_start_ms: Optional[int],
+-    run_window_end_ms: Optional[int]) -> str:
++    ps_lines: Optional[List[str]] = None,
++    top_lines: Optional[List[str]] = None,
++    procs_source: str = "",
++    run_window_start_ms: Optional[int] = None,
++    run_window_end_ms: Optional[int] = None) -> str:
+ 
+     lines: List[str] = []
+ 
+@@ -ZZZZ,33 +ZZZZ,79 @@
+-    # proc snapshot (fallback to ps list)
+-    if proc_lines:
+-        # The "procs_*.txt" is a best-effort snapshot, often with PID/RSS/NAME etc.
+-        # We'll pick top RSS lines if parseable.
+-        top_rss: List[Tuple[int, str, str]] = []
+-        for ln in proc_lines:
+-            toks = ln.split()
+-            if len(toks) >= 3 and toks[0].isdigit() and toks[1].isdigit():
+-                pid = toks[0]
+-                rss_kb = int(toks[1])
+-                top_rss.append((rss_kb, pid, ln))
+-        top_rss.sort(reverse=True)
+-
+-        lines.append("")
+-        lines.append("【proc snapshot】 snapshot ts_ms=None, reason=ps_list")
+-        if top_rss:
+-            for rss_kb, pid, ln in top_rss[:20]:
+-                lines.append(f"pid={pid} rss_kb={rss_kb} line={ln}")
+-        else:
+-            # fallback: raw lines
+-            lines.extend(proc_lines[:80])
+-
+-        payload["proc_snapshot"] = {"ts_ms": None, "reason": "ps_list", "top_rss": top_rss[:20]}
++    # process evidence (prefer procs_*.txt; also include ps/top snapshots when present)
++    if top_lines:
++        lines.append("")
++        lines.append("【top 输出（截断）】")
++        for ln in top_lines[-80:]:
++            lines.append(ln)
++
++    if ps_lines:
++        lines.append("")
++        lines.append("【ps 输出（截断）】")
++        for ln in ps_lines[-120:]:
++            lines.append(ln)
++
++    if proc_lines:
++        lines.append("")
++        lines.append("【procs 快照（截断）】")
++        if procs_source:
++            lines.append(f"source={procs_source}")
++        for ln in proc_lines[:120]:
++            lines.append(ln)
++
++        # Best-effort parse: "PID ... RSS_KB ..." (formats vary across collectors)
++        top_rss = []
++        for ln in proc_lines:
++            toks = ln.split()
++            if len(toks) >= 3 and toks[0].isdigit():
++                pid = toks[0]
++                ints = [int(x) for x in toks[1:] if x.isdigit()]
++                if ints:
++                    top_rss.append((max(ints), pid, ln))
++        if top_rss:
++            top_rss.sort(reverse=True)
++            lines.append("")
++            lines.append("【procs 解析（Top RSS 近似值）】")
++            for rss, pid, ln in top_rss[:20]:
++                lines.append(f"pid={pid} rss_approx={rss} line={ln}")
++
++        payload["proc_snapshot"] = {
++            "source": procs_source or None,
++            "lines_count": len(proc_lines),
++            "note": "raw lines are included in the user message; parser is best-effort",
++        }
+ 
+     if dmesg_lines:
+         lines.append("")
+         lines.append("【dmesg tail】")
+@@ -AAAA,20 +AAAA,64 @@
+ def build_payload_from_run(run_dir: Path, out_dir: Path, ...) -> Dict[str, Any]:
+-    meta_path = run_dir / "_run_meta.json"
+-    dmesg_after = run_dir / "dmesg_after.utf8.log"
+-    hilog_full = run_dir / "hilog_text_full.log"
+-    metrics_dir = run_dir / "metrics"
+-    events_dir = run_dir / "events"
+-    procs_dir = run_dir / "procs"
++    meta_path = run_dir / "_run_meta.json"
++    snapshots_dir = run_dir / "snapshots"
++
++    # Backward-compatible (old layout)
++    dmesg_after = run_dir / "dmesg_after.utf8.log"
++    hilog_full = run_dir / "hilog_text_full.log"
++
++    # Prefer snapshot files when available (stage2 bundle layout)
++    dmesg_path = pick_existing([
++        dmesg_after,
++        snapshots_dir / "dmesg_tail.txt",
++        snapshots_dir / "dmesg.txt",
++        snapshots_dir / "dmesg.log",
++    ])
++    hilog_path = pick_existing([
++        hilog_full,
++        snapshots_dir / "hilog_tail.txt",
++        snapshots_dir / "hilog.txt",
++        snapshots_dir / "hilog.log",
++    ])
++    ps_path = pick_existing([
++        snapshots_dir / "ps.txt",
++        snapshots_dir / "ps_a.txt",
++        snapshots_dir / "ps_all.txt",
++    ])
++    top_path = pick_existing([
++        snapshots_dir / "top.txt",
++        snapshots_dir / "top_tail.txt",
++    ])
++
++    metrics_dir = run_dir / "metrics"
++    events_dir = run_dir / "events"
++    procs_dir = run_dir / "procs"
+-    proc_lines: List[str] = []
+-    if procs_dir.exists():
+-        proc_files = sorted(procs_dir.glob("procs_*.txt"))
+-        if proc_files:
+-            proc_lines = read_lines_tail(proc_files[-1], 200)
+-            # drop header lines
+-            proc_lines = [ln for ln in proc_lines if ln.strip() and not ln.startswith("PID ")]
+-
+-    dmesg_lines = read_lines_tail(dmesg_after, 200)
+-    hilog_lines = read_lines_tail(hilog_full, 200)
++    proc_lines: List[str] = []
++    procs_source = ""
++    if procs_dir.exists():
++        proc_files = sorted(procs_dir.glob("procs_*.txt"))
++        if proc_files:
++            procs_source = str(proc_files[-1])
++            proc_lines = read_lines_tail(proc_files[-1], max_lines=400, max_total_chars=40_000)
++            # drop header lines
++            proc_lines = [ln for ln in proc_lines if ln.strip() and not ln.startswith("PID ")]
++
++    dmesg_lines = read_lines_tail(dmesg_path, 200) if dmesg_path else []
++    hilog_lines = read_lines_tail(hilog_path, 200) if hilog_path else []
++    ps_lines = read_lines_tail(ps_path, 200) if ps_path else []
++    top_lines = read_lines_tail(top_path, 200) if top_path else []
+ 
+     user_message = build_user_message(
+         run_id=run_id,
+         meta=meta_llm,
+         labels=labels,
+@@ -BBBB,7 +BBBB,10 @@
+         metrics_fields=metrics_fields,
+         metrics_rows=metrics_rows,
+         events_rows=events_rows,
+         proc_lines=proc_lines,
+         dmesg_lines=dmesg_lines,
+         hilog_lines=hilog_lines,
++        ps_lines=ps_lines,
++        top_lines=top_lines,
++        procs_source=procs_source,
+         run_window_start_ms=run_window_start_ms,
+         run_window_end_ms=run_window_end_ms,
+     )
+@@ -CCCC,14 +CCCC,26 @@
+-        prompt_material = {
+-            "run_meta": meta_llm,  # sanitized
+-            "metrics_fields": metrics_fields,
+-            "events_count": len(events),
+-            "dmesg_after_tail": read_text_tail(dmesg_after, 200),
+-            "hilog_tail": read_text_tail(hilog_full, 200),
+-        }
++        prompt_material = {
++            "run_meta": meta_llm,  # sanitized
++            "metrics_fields": metrics_fields,
++            "events_count": len(events),
++            # keep legacy key name for backward compatibility
++            "dmesg_after_tail": read_text_tail(dmesg_path, 200) if dmesg_path else "",
++            "hilog_tail": read_text_tail(hilog_path, 200) if hilog_path else "",
++            "sources": {
++                "dmesg": str(dmesg_path) if dmesg_path else None,
++                "hilog": str(hilog_path) if hilog_path else None,
++                "ps": str(ps_path) if ps_path else None,
++                "top": str(top_path) if top_path else None,
++                "procs": procs_source or None,
++            },
++            "procs_tail": "\n".join(proc_lines[-200:]) if proc_lines else "",
++            "ps_tail": "\n".join(ps_lines[-200:]) if ps_lines else "",
++            "top_tail": "\n".join(top_lines[-200:]) if top_lines else "",
++        }
+         (out_dir / "prompt_material.json").write_text(
+             json.dumps(prompt_material, ensure_ascii=False, indent=2),
+             encoding="utf-8",
+         )

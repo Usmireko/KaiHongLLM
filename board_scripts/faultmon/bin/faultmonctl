@@ -1,0 +1,141 @@
+#!/bin/sh
+#
+# faultmonctl - convenience wrapper for faultmon.sh
+
+set -eu
+
+PATH=/bin:/system/bin:/usr/bin:/usr/local/bin
+export PATH
+
+BASE_DIR=/data/faultmon
+BIN_DIR=$BASE_DIR/bin
+FAULTMON=$BIN_DIR/faultmon.sh
+STATS_DIR=$BASE_DIR/stats
+STATE_DIR=$BASE_DIR/state
+
+if [ ! -x "$FAULTMON" ] && [ -x "./faultmon.sh" ]; then
+    FAULTMON=$(readlink -f "./faultmon.sh" 2>/dev/null || echo "./faultmon.sh")
+fi
+
+usage() {
+    cat <<EOF
+Usage: $0 <command> [args]
+Commands:
+  start|stop|status|dump     Proxy to faultmon.sh
+  stats-day [YYYYmmdd] [N]   Show top-N rule counts for the day (default today, N=5)
+  stats-hour [YYYYmmddHH]    Show summary JSON for the hour
+  last-archive               Show latest archive entry
+  help                       Show this help
+EOF
+}
+
+require_faultmon() {
+    if [ ! -x "$FAULTMON" ]; then
+        echo "faultmonctl: faultmon.sh not installed at $FAULTMON" >&2
+        exit 1
+    fi
+}
+
+print_top_map() {
+    # $1 map name, $2 file, $3 top N
+    local map_name="$1" file="$2" limit="$3"
+    local map_line
+    map_line=$(sed -n "s/.*\"$map_name\":{\\([^}]*\\)}.*/\\1/p" "$file")
+    if [ -z "$map_line" ]; then
+        echo "no data"
+        return
+    fi
+    printf '%s\n' "$map_line" | sed 's/,/\n/g' | while IFS=: read -r name value; do
+        name=$(printf '%s' "$name" | sed 's/^\"//;s/\"$//;s/^[[:space:]]*//;s/[[:space:]]*$//')
+        value=$(printf '%s' "$value" | sed 's/[^0-9]//g')
+        [ -n "$name" ] && [ -n "$value" ] || continue
+        printf '%s|%s\n' "$value" "$name"
+    done | sort -t'|' -k1,1nr | head -n "$limit" | while IFS='|' read -r count name; do
+        printf '%s %s\n' "$name" "$count"
+    done
+}
+
+stats_day() {
+    local day top file total
+    day=${1:-$(date +%Y%m%d)}
+    top=${2:-5}
+    file="$STATS_DIR/daily_${day}.json"
+    if [ ! -f "$file" ]; then
+        echo "stats file $file not found"
+        exit 1
+    fi
+    total=$(sed -n 's/.*"total":\([0-9]*\).*/\1/p' "$file")
+    echo "Daily total: ${total:-0}"
+    echo "Top-${top} rules:"
+    print_top_map "by_rule" "$file" "$top"
+    echo "Top-${top} tags:"
+    print_top_map "by_tag" "$file" "$top"
+}
+
+stats_hour() {
+    local hour file
+    hour=${1:-$(date +%Y%m%d%H)}
+    file="$STATS_DIR/hourly_${hour}.json"
+    if [ ! -f "$file" ]; then
+        echo "stats file $file not found"
+        exit 1
+    fi
+    cat "$file"
+}
+
+last_archive() {
+    local index line
+    index="$STATE_DIR/index.csv"
+    if [ ! -f "$index" ]; then
+        echo "archive index not found"
+        exit 1
+    fi
+    line=$(tail -n +2 "$index" | tail -n 1)
+    if [ -z "$line" ]; then
+        echo "no archive entries yet"
+        exit 0
+    fi
+    ts=${line%%,*}
+    rest=${line#*,}
+    type=${rest%%,*}
+    rest=${rest#*,}
+    source=${rest%%,*}
+    rest=${rest#*,}
+    path=${rest%%,*}
+    summary=${rest#*,}
+    summary=${summary#\"}
+    summary=${summary%\"}
+    summary=$(printf '%s' "$summary" | sed 's/""/"/g')
+    echo "timestamp_ms: $ts"
+    echo "type        : $type"
+    echo "source      : $source"
+    echo "archive_path: $path"
+    echo "summary     : $summary"
+}
+
+cmd=${1:-help}
+shift || true
+
+case "$cmd" in
+    start|stop|status|dump)
+        require_faultmon
+        exec "$FAULTMON" "$cmd" "$@"
+        ;;
+    stats-day)
+        stats_day "$@"
+        ;;
+    stats-hour)
+        stats_hour "$@"
+        ;;
+    last-archive)
+        last_archive
+        ;;
+    help|--help|-h)
+        usage
+        ;;
+    *)
+        echo "Unknown command: $cmd"
+        usage
+        exit 1
+        ;;
+esac

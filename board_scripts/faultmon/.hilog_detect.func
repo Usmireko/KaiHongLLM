@@ -1,0 +1,33 @@
+hilog_detect() {
+  # 环境变量覆盖：HILOG_CMD=/bin/hilog HILOG_OPTS=""
+  if [ -n "$HILOG_CMD" ]; then
+    if [ -x "$HILOG_CMD" ] || command -v "$HILOG_CMD" >/dev/null 2>&1; then
+      : ${HILOG_OPTS:=}
+      return 0
+    fi
+  fi
+
+  # 依次探测：hilogcat -> logcat -> hilog（含常见绝对路径）
+  for n in hilogcat logcat hilog; do
+    if command -v "$n" >/dev/null 2>&1; then
+      case "$n" in
+        hilogcat) HILOG_CMD="$n"; HILOG_OPTS="-b ${HILOG_BUFFERS:-main,system} -v threadtime" ;;
+        logcat)   HILOG_CMD="$n"; HILOG_OPTS="-v threadtime" ;;
+        hilog)    HILOG_CMD="$n"; HILOG_OPTS="" ;;
+      esac
+      return 0
+    fi
+    for d in /system/bin /vendor/bin /usr/bin /bin /sbin /system/xbin /usr/local/bin; do
+      if [ -x "$d/$n" ]; then
+        case "$n" in
+          hilogcat) HILOG_CMD="$d/$n"; HILOG_OPTS="-b ${HILOG_BUFFERS:-main,system} -v threadtime" ;;
+          logcat)   HILOG_CMD="$d/$n"; HILOG_OPTS="-v threadtime" ;;
+          hilog)    HILOG_CMD="$d/$n"; HILOG_OPTS="" ;;
+        esac
+        return 0
+      fi
+    done
+  done
+
+  HILOG_CMD=""; return 1
+}

@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual env
+.venv_qwen3/
+
+# Backups
+*.bak
+*.bak_*
+*~
+
+# Data/model artifacts
+/data/*.jsonl
+/qwen3_8b_fault_qlora/
+/storage/runs/
+/storage/logs/
+/storage/tcp_inbox/
+/storage/tcp_out/
+/storage/tcp_runs/
+/storage/in_action_results/
+/storage/pids/
+/storage/tmp/
+
+# Large model files
+*.safetensors
+*.bin
+
+# Inbox / legacy
+/inbox/
+/old/
+/storage/inbox_bundles/
+
+# Demo build artifacts / binaries
+/demo_stage2/**/build/
+/demo_stage2/**/third_party/busybox_arm64_static
+
+# Patch artifacts / temp
+*.orig
+*.rej
+*.broken_*
+*.tmp
+*.pid
+
+# Optional logs
+/data/*.txt

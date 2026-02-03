@@ -1,0 +1,4 @@
+#!/bin/sh
+[ -d /data/faultmon/state ] || mkdir -p /data/faultmon/state
+[ -f /data/faultmon/state/clock.offset ] || printf '0\n' > /data/faultmon/state/clock.offset
+exit 0
