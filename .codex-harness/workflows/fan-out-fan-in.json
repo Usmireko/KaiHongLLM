@@ -1,0 +1,41 @@
+{
+  "schema_version": "codex-harness.workflow_pattern.v1",
+  "pattern_name": "fan-out-fan-in",
+  "role_flow": "fanout-explorer + fanout-implementer -> fanin-reviewer",
+  "dependency_graph": {
+    "fanout-explorer": [],
+    "fanout-implementer": [],
+    "fanin-reviewer": ["fanout-explorer", "fanout-implementer"]
+  },
+  "gate_role": "fanin-reviewer",
+  "aggregation_pass_rule": "all fan-out roles and the fan-in reviewer are captured, deterministic links are resolved, and fanin-reviewer has top-level RESULT: PASS",
+  "roles": [
+    {
+      "id": "fanout-explorer",
+      "agent_type": "project-explorer",
+      "required": true,
+      "result_file": "01_fanout_explorer_result.md",
+      "depends_on": [],
+      "aliases": ["producer[0]"],
+      "prompt_template": "Explore one independent side of the scoped task, do not edit files, and report facts needed by the fan-in reviewer."
+    },
+    {
+      "id": "fanout-implementer",
+      "agent_type": "project-implementer",
+      "required": true,
+      "result_file": "02_fanout_implementer_result.md",
+      "depends_on": [],
+      "aliases": ["producer[1]"],
+      "prompt_template": "Handle the independent implementation/no-op side of the scoped task without modifying business files unless explicitly authorized."
+    },
+    {
+      "id": "fanin-reviewer",
+      "agent_type": "project-reviewer",
+      "required": true,
+      "result_file": "03_fanin_reviewer_result.md",
+      "depends_on": ["fanout-explorer", "fanout-implementer"],
+      "aliases": ["reviewer"],
+      "prompt_template": "Review and synthesize fan-out results, list non-blocking warnings separately, and gate with top-level RESULT: PASS only if all required evidence passes."
+    }
+  ]
+}

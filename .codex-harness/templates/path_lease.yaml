@@ -1,0 +1,47 @@
+# PathLease template for manual P0 harness use.
+# This file does not lock the filesystem or call Git.
+schema: codex-harness.path_lease.p0
+version: 0
+
+lease:
+  id: "LEASE-YYYYMMDD-short-name"
+  task_id: "TASK-YYYYMMDD-short-name"
+  owner: ""
+  reason: ""
+  created_at: "YYYY-MM-DDTHH:MM:SS+08:00"
+  expires_at: ""
+  stage: "patch"
+  trigger: "manual_edit"
+  lock: "manual_path_coordination"
+  cooldown: "manual_review_before_releasing"
+
+paths:
+  write_allowed:
+    - ".codex-harness/**"
+  read_only: []
+  blocked:
+    - "server_B/tcp/**"
+    - "board/**"
+    - "board_A/**"
+    - "faults/**"
+    - "tools/**"
+    - "inbox/**"
+    - "dataset_batches/**"
+  future_integration:
+    - "server_B/tcp"
+    - "board/KaiHongOS"
+    - "L0/L1/L2 dataset pipeline"
+
+allowed_operations:
+  create_docs: true
+  create_yaml_templates: true
+  create_markdown_templates: true
+  edit_existing_business_scripts: false
+  run_board_commands: false
+  run_server_commands: false
+  run_dataset_export: false
+
+release:
+  validation_required: "manual file review"
+  released_at: ""
+  notes: []

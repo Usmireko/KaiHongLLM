@@ -1,0 +1,68 @@
+# Runtime and collected data
+archive/
+artifacts/
+storage/
+storage/runs/
+artifacts/datasets/
+artifacts/models/
+artifacts/checkpoints/
+artifacts/logs/
+artifacts/outputs/
+dataset/raw/
+dataset/l0/
+dataset/l1/
+dataset/l2/
+dataset_batches/
+demo_public_dataset/
+inbox/
+inbox_net/
+logs/
+tmp/
+_tmp*/
+_stage2_tmp/
+_stage2_bridge/
+_smoke_net_batch2_*/
+net_tmp_probe/
+manual_experiments/
+tools/out/
+
+# Model artifacts
+models/
+checkpoints/
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.gguf
+
+# Python local state
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Harness generated reports/manifests
+.codex-harness/last_*.txt
+.codex-harness/reports/**
+.codex-harness/reports/*.json
+.codex-harness/manifests/*.json
+.codex-harness/task_specs/**
+.codex-harness/tasks/runs/**
+
+# Local/private config
+*.local.env
+*.local.ps1
+.env
+.env.*
+!.env.example
+
+# Archives and board-side binary blobs
+*.rar
+*.zip
+busybox*
+
+# Publishing hygiene
+*.bak_*
+.codex-harness/reports/**
+.codex-harness/tasks/**
+.codex-harness/task_specs/**

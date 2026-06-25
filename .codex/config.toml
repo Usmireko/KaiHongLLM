@@ -1,0 +1,21 @@
+[features]
+codex_hooks = true
+
+[agents]
+max_threads = 6
+max_depth = 3
+
+[[hooks.Stop]]
+[[hooks.Stop.hooks]]
+type = "command"
+command = "python .codex/hooks/stop_check.py"
+timeout = 30
+statusMessage = "Running project stop checks"
+
+[[hooks.PreToolUse]]
+matcher = "Bash|apply_patch"
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "python .codex/hooks/pretool_guard.py"
+timeout = 10
+statusMessage = "Checking command safety"

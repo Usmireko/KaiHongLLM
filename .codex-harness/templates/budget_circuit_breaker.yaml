@@ -1,0 +1,46 @@
+# BudgetCircuitBreaker template for manual P0 harness use.
+# This file is advisory; it does not enforce limits.
+schema: codex-harness.budget_circuit_breaker.p0
+version: 0
+
+task_ref:
+  task_id: "TASK-YYYYMMDD-short-name"
+
+budgets:
+  max_repair_depth: 3
+  max_new_files: 12
+  max_touched_existing_business_scripts: 0
+  max_validation_attempts: 3
+  allow_network_access: false
+  allow_hdc: false
+  allow_board_mutation: false
+  allow_server_mutation: false
+  allow_dataset_generation: false
+  allow_app_server: false
+  allow_multi_agent_concurrency: false
+  allow_auto_review_gate: false
+
+manual_break_conditions:
+  - "Task requires editing files outside the active PathLease."
+  - "Task requires app-server, queue, or concurrent agent runtime."
+  - "Task requires automatic review gate enforcement."
+  - "Task requires board access without explicit HDC scope and skill use."
+  - "Task relies on board-side awk or tr."
+  - "Task would mix GT and OBS or relabel GT from symptoms."
+  - "Training acceptance evidence is outside _run_meta.json run_window."
+  - "NET subtype evidence chain is missing or semantically weak."
+  - "Repair depth 3 is reached without passing validation."
+
+stage_state:
+  trigger: "manual_request"
+  lock: "manual"
+  cooldown: "stop_and_report_on_break"
+  current_stage: "scope"
+
+on_break:
+  required_report:
+    - "exact failed condition"
+    - "files touched"
+    - "commands run"
+    - "likely cause"
+    - "recommended next manual check"

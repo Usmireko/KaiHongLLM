@@ -1,0 +1,104 @@
+# TaskSpec template for manual P0 harness use.
+# This file is not executed by any runner.
+schema: codex-harness.task_spec.p0
+version: 0
+
+task:
+  id: "TASK-YYYYMMDD-short-name"
+  title: ""
+  requested_by: ""
+  created_at: "YYYY-MM-DDTHH:MM:SS+08:00"
+  risk_level: "low" # low | medium | high
+  stage: "scope"
+  trigger: "manual_request"
+  lock: "manual"
+  cooldown: "manual_validation_before_next_stage"
+
+intent:
+  objective: ""
+  task_type: "scaffold" # implementation | validation-only | review-only | collection | dataset | documentation | scaffold
+  expected_output: ""
+
+scope:
+  in_scope:
+    - ".codex-harness scaffold metadata only"
+  out_of_scope:
+    - "app-server"
+    - "multi-agent concurrency"
+    - "automatic review gate"
+    - "business script edits"
+
+paths:
+  allowed_paths:
+    - ".codex-harness/**"
+  forbidden_paths:
+    - ".git/**"
+    - "storage/runs/**"
+    - "dataset/raw/**"
+    - "server_B/tcp/**"
+    - "board/**"
+    - "board_A/**"
+    - "faults/**"
+    - "tools/**"
+    - "*.ps1"
+    - "*.sh"
+  write_allowed:
+    - ".codex-harness/**"
+  read_only: []
+  blocked:
+    - "server_B/tcp/**"
+    - "board/**"
+    - "board_A/**"
+    - "faults/**"
+    - "tools/**"
+    - "*.ps1"
+    - "*.sh"
+  future_integration:
+    - "server_B/tcp"
+    - "board/KaiHongOS"
+
+limits:
+  max_repair_depth: 3
+  allow_app_server: false
+  allow_multi_agent_concurrency: false
+  allow_auto_review_gate: false
+  allow_hdc: false
+  allow_ssh: false
+
+project_rules:
+  host_surface: "Windows/PowerShell"
+  board_surface: "KaiHongOS/OpenHarmony"
+  board_forbidden_tools:
+    - "awk"
+    - "tr"
+  hdc_style: "short separate hdc shell invocations when scoped"
+  preserve_l0_l1_l2: true
+  preserve_gt_obs_separation: true
+  preserve_net_fault_subtype: true
+  require_run_window_alignment: true
+  anti_evidence_gaming: true
+
+dataset_context:
+  level: "none" # none | L0 | L1 | L2
+  gt_fields: []
+  obs_fields: []
+  gt_obs_discrepancy_policy: "preserve_gt_report_discrepancy"
+
+net_context:
+  fault_family: "net"
+  subtype: "none"
+  required_evidence_chain: []
+  selftest_marker_required: true
+
+validation:
+  validation_commands:
+    - "python .codex-harness/tools/validate_harness.py"
+  command: ""
+  manual_only: true
+  acceptance: "No automatic acceptance in P0."
+
+review:
+  codex_audit_required: false
+  automatic_review_gate: false
+
+notes: []

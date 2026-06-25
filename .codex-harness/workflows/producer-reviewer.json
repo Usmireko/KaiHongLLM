@@ -1,0 +1,29 @@
+{
+  "schema_version": "codex-harness.workflow_pattern.v1",
+  "pattern_name": "producer-reviewer",
+  "role_flow": "producer -> reviewer",
+  "dependency_graph": {
+    "producer": [],
+    "reviewer": ["producer"]
+  },
+  "gate_role": "reviewer",
+  "aggregation_pass_rule": "producer and reviewer are captured, deterministic links are resolved, and reviewer has top-level RESULT: PASS",
+  "roles": [
+    {
+      "id": "producer",
+      "agent_type": "project-implementer",
+      "required": true,
+      "result_file": "01_producer_result.md",
+      "depends_on": [],
+      "prompt_template": "Produce the scoped deliverable or a no-op confirmation if no change is required; do not modify business files unless explicitly authorized."
+    },
+    {
+      "id": "reviewer",
+      "agent_type": "project-reviewer",
+      "required": true,
+      "result_file": "02_reviewer_result.md",
+      "depends_on": ["producer"],
+      "prompt_template": "Review the producer output, separate non-blocking warnings, and use top-level RESULT: PASS only when the source is strictly acceptable."
+    }
+  ]
+}

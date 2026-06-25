@@ -1,0 +1,40 @@
+# TaskRouter template for manual P0 harness use.
+# This file records a routing decision; it does not dispatch work.
+schema: codex-harness.task_router.p0
+version: 0
+
+task_ref:
+  task_id: "TASK-YYYYMMDD-short-name"
+  task_spec_path: ".codex-harness/templates/task_spec.yaml"
+
+routing:
+  decision: "local_documentation_only"
+  risk_level: "low" # low | medium | high
+  reason: ""
+  required_skills:
+    - "os-fault-engineer"
+  optional_skills: []
+  forbidden_routes:
+    - "app-server"
+    - "automatic_subagent_spawn"
+    - "multi-agent_concurrency"
+    - "automatic_review_gate"
+
+surfaces:
+  windows_powershell: "manual_notes_only"
+  server_B_tcp: "future_integration_only"
+  board_kaihongos: "out_of_scope_for_p0"
+  dataset_l0_l1_l2: "metadata_only"
+  net_fault_subtype: "metadata_only"
+
+stage_flow:
+  trigger: "manual_request"
+  lock: "path_lease_required_before_edits"
+  cooldown: "manual_validation_before_next_stage"
+  current_stage: "scope"
+  next_stage: "explore"
+
+handoff:
+  owner: ""
+  reviewer: ""
+  notes: []

@@ -1,0 +1,38 @@
+{
+  "schema_version": "codex-harness.workflow_pattern.v1",
+  "pattern_name": "explorer-implementer-reviewer",
+  "role_flow": "project-explorer -> project-implementer -> project-reviewer",
+  "dependency_graph": {
+    "project-explorer": [],
+    "project-implementer": ["project-explorer"],
+    "project-reviewer": ["project-implementer"]
+  },
+  "gate_role": "project-reviewer",
+  "aggregation_pass_rule": "all required roles are captured, deterministic links are resolved, and project-reviewer has top-level RESULT: PASS",
+  "roles": [
+    {
+      "id": "project-explorer",
+      "agent_type": "project-explorer",
+      "required": true,
+      "result_file": "01_project_explorer_result.md",
+      "depends_on": [],
+      "prompt_template": "Explore the scoped harness request, gather facts, do not edit files, and report RESULT: PASS if no blocking issue is found."
+    },
+    {
+      "id": "project-implementer",
+      "agent_type": "project-implementer",
+      "required": true,
+      "result_file": "02_project_implementer_result.md",
+      "depends_on": ["project-explorer"],
+      "prompt_template": "Implement only if a real blocking issue is found; otherwise provide a no-op implementation confirmation."
+    },
+    {
+      "id": "project-reviewer",
+      "agent_type": "project-reviewer",
+      "required": true,
+      "result_file": "03_project_reviewer_result.md",
+      "depends_on": ["project-implementer"],
+      "prompt_template": "Review the explored/implemented workflow, put non-blocking issues under Non-Blocking Warnings, and gate with top-level RESULT: PASS only when strict acceptance is ready."
+    }
+  ]
+}

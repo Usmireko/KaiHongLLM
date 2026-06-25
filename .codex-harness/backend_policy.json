@@ -1,0 +1,24 @@
+{
+  "schema": "codex-harness.backend_policy.v14",
+  "default_capture_backend": "jsonl",
+  "authoritative_backend": "jsonl",
+  "candidate_backends": [
+    "app-server-candidate"
+  ],
+  "experimental_backends": [
+    "dual"
+  ],
+  "dual_mode": {
+    "authoritative_backend": "jsonl",
+    "candidate_backend": "app-server-candidate"
+  },
+  "jsonl_replacement_claimed": false,
+  "app_server_default_allowed": false,
+  "app_server_authoritative_allowed": false,
+  "allowed_link_modes": [
+    "collab_agent_spawn_end",
+    "function_call_output_agent_id",
+    "app_server_collab_agent_tool_call",
+    "app_server_function_call_output_agent_id"
+  ]
+}

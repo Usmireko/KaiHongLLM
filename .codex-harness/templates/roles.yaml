@@ -1,0 +1,468 @@
+# Non-executable role registry template for manual P1 harness design.
+# This file is a contract source only. It does not enable subagents, dispatch
+# work, enforce permissions, connect to boards or servers, or run validation.
+schema: codex-harness.roles.p1
+version: 1
+
+metadata:
+  status: "non_executable_contract"
+  enables_real_subagents: false
+  earliest_real_subagent_phase: "P1-7"
+  source_of_truth: ".codex-harness"
+  notes:
+    - "Harness roles are stable abstractions."
+    - "backend_agent maps to an existing Codex agent when available."
+    - "backend_agent: null means no runnable backend agent exists for this role."
+    - "P1-1 does not modify .codex/agents, .claude, .agents, AGENTS.md, or business scripts."
+    - "No scheduler, multi-agent concurrency, or automatic review gate is enabled."
+
+global_policy:
+  primary_execution_tool: "Codex Pro"
+  claude_role: "auxiliary_long_context_advisor_plan_reviewer_second_reader_writer_context_compressor"
+  forbid_infinite_loops: true
+  default_auto_review_gate: false
+  default_multi_agent_concurrency: false
+  real_board_hdc_collection_requires_human_gate: true
+  control_plane: "Windows/PowerShell"
+  powershell_hdc_ssh_quoting_review_required: true
+  board_surface: "KaiHongOS/OpenHarmony"
+  board_forbidden_tools:
+    - "awk"
+    - "tr"
+  board_unverified_commands:
+    - "route"
+  default_forbidden_paths:
+    - ".git/**"
+    - "storage/runs/**"
+    - "dataset/raw/**"
+    - "dataset/l0/**"
+    - "dataset/l1/**"
+    - "dataset/l2/**"
+    - "models/**"
+    - "checkpoints/**"
+    - "inbox/runs/**"
+    - "_tmp/**"
+    - "_bundles/**"
+  semantic_boundaries:
+    preserve_l0_l1_l2: true
+    preserve_gt_obs_separation: true
+    preserve_accepted_semantics: true
+    preserve_subtype_boundary: true
+
+roles:
+  - role_id: "explorer"
+    purpose: "Read-only exploration of relevant files, call chains, data flow, consumers, validation commands, and risks."
+    backend_agent: "project-explorer"
+    review_mode: "none"
+    allowed_task_types:
+      - "implementation"
+      - "review-only"
+      - "validation-only"
+      - "documentation"
+      - "scaffold"
+      - "dataset"
+      - "collection"
+    write_permission: "none"
+    write_scope_source: "not_applicable_read_only"
+    allowed_paths:
+      - "TaskSpec.read_only"
+      - "TaskSpec.allowed_paths for inspection only"
+    forbidden_paths:
+      - ".git/**"
+      - "storage/runs/**"
+      - "dataset/raw/**"
+      - "dataset/l0/**"
+      - "dataset/l1/**"
+      - "dataset/l2/**"
+      - "models/**"
+      - "checkpoints/**"
+      - "inbox/runs/** unless TaskSpec explicitly scopes a validation-only review"
+      - "_tmp/**"
+      - "_bundles/**"
+    allowed_tools:
+      - "read_file"
+      - "list_files"
+      - "search_text"
+      - "git_status"
+      - "git_diff_read_only"
+    forbidden_tools:
+      - "apply_patch"
+      - "file_write"
+      - "git_add"
+      - "git_commit"
+      - "hdc"
+      - "ssh"
+      - "scp"
+      - "app_server"
+      - "collection_runner"
+    board_access: "forbidden"
+    server_access: "forbidden"
+    max_repair_depth: 0
+    requires_human_gate: false
+    requires_review_after: false
+    output_contract:
+      required_sections:
+        - "Relevant files"
+        - "Data/control flow"
+        - "Suggested edit points"
+        - "Validation commands"
+        - "Risks"
+    stop_conditions:
+      - "Exploration requires modifying files."
+      - "Exploration requires board, HDC, SSH, server, app-server, or real collection access without explicit TaskSpec authorization and human gate."
+      - "Requested read path is outside TaskSpec scope or a default forbidden data directory."
+    escalation_rules:
+      - "Escalate to implementer only after TaskSpec write scope is explicit."
+      - "Escalate to adversarial review if state machine, protocol, recovery, GT/OBS, L1/L2, accepted semantics, or subtype boundary risk is found."
+    claude_assist_policy: "allowed_for_long_context_advice_or_second_reading_only_no_execution"
+
+  - role_id: "implementer"
+    purpose: "Make the smallest coherent patch inside the active TaskSpec and PathLease write scope."
+    backend_agent: "project-implementer"
+    review_mode: "self-review"
+    allowed_task_types:
+      - "implementation"
+      - "documentation"
+      - "scaffold"
+    write_permission: "scoped"
+    write_scope_source: "TaskSpec.write_allowed plus TaskSpec.allowed_paths plus active PathLease"
+    allowed_paths:
+      - "TaskSpec.write_allowed"
+      - "TaskSpec.allowed_paths"
+    forbidden_paths:
+      - ".git/**"
+      - "storage/runs/**"
+      - "dataset/raw/**"
+      - "dataset/l0/**"
+      - "dataset/l1/**"
+      - "dataset/l2/**"
+      - "models/**"
+      - "checkpoints/**"
+      - "paths not present in active write scope"
+      - "untracked business scripts until baseline commit is confirmed"
+    allowed_tools:
+      - "read_file"
+      - "list_files"
+      - "search_text"
+      - "apply_patch"
+      - "format_scoped_files"
+      - "TaskSpec-approved validation commands"
+      - "git_status"
+      - "git_diff_read_only"
+    forbidden_tools:
+      - "git_add"
+      - "git_commit"
+      - "git_reset_hard"
+      - "git_clean"
+      - "hdc unless TaskSpec and human gate authorize"
+      - "ssh unless TaskSpec and human gate authorize"
+      - "scp unless TaskSpec and human gate authorize"
+      - "app_server"
+      - "collection_runner unless TaskSpec and human gate authorize"
+    board_access: "requires_human_gate"
+    server_access: "requires_human_gate"
+    max_repair_depth: 0
+    requires_human_gate: true
+    requires_review_after: true
+    output_contract:
+      required_sections:
+        - "Files changed"
+        - "Key changes"
+        - "Validation commands run"
+        - "Validation result"
+        - "Remaining risks"
+    stop_conditions:
+      - "Patch requires files outside TaskSpec write scope."
+      - "Patch requires changing an untracked business script before baseline commit."
+      - "Patch requires board, HDC, SSH, server, app-server, or real collection access without explicit TaskSpec authorization and human gate."
+      - "Patch would broaden task scope or change public semantics unexpectedly."
+      - "Patch would mix GT and OBS or change accepted semantics without explicit authorization."
+    escalation_rules:
+      - "Escalate to reviewer after non-trivial implementation."
+      - "Escalate to adversarial_reviewer if state machine, protocol, trigger/lock/cooldown/stage, recovery, GT/OBS, L1/L2, accepted semantics, or subtype boundary is touched."
+      - "Escalate to repairer only for a concrete validation failure or reviewer finding."
+    claude_assist_policy: "allowed_for_plan_review_or_second_reading_only_no_code_execution"
+
+  - role_id: "reviewer"
+    purpose: "Read-only review for correctness, missed consumers, compatibility, command portability, and validation adequacy."
+    backend_agent: "project-reviewer"
+    review_mode: "standard"
+    allowed_task_types:
+      - "implementation"
+      - "review-only"
+      - "documentation"
+      - "scaffold"
+      - "dataset"
+      - "validation-only"
+    write_permission: "none"
+    write_scope_source: "not_applicable_read_only"
+    allowed_paths:
+      - "TaskSpec.allowed_paths for inspection only"
+      - "TaskSpec.read_only"
+      - "git diff under active task scope"
+    forbidden_paths:
+      - ".git/**"
+      - "storage/runs/** unless TaskSpec explicitly scopes validation-only evidence review"
+      - "dataset/raw/**"
+      - "dataset/l0/** unless TaskSpec explicitly scopes validation-only review"
+      - "dataset/l1/** unless TaskSpec explicitly scopes validation-only review"
+      - "dataset/l2/** unless TaskSpec explicitly scopes validation-only review"
+      - "models/**"
+      - "checkpoints/**"
+    allowed_tools:
+      - "read_file"
+      - "list_files"
+      - "search_text"
+      - "git_status"
+      - "git_diff_read_only"
+      - "TaskSpec-approved read-only validation commands"
+    forbidden_tools:
+      - "apply_patch"
+      - "file_write"
+      - "git_add"
+      - "git_commit"
+      - "hdc"
+      - "ssh"
+      - "scp"
+      - "app_server"
+      - "collection_runner"
+    board_access: "forbidden"
+    server_access: "forbidden"
+    max_repair_depth: 0
+    requires_human_gate: false
+    requires_review_after: false
+    output_contract:
+      required_sections:
+        - "Critical"
+        - "High"
+        - "Medium"
+        - "Low"
+        - "Recommended fix order"
+    focus_areas:
+      - "missed consumers"
+      - "interface compatibility"
+      - "PowerShell quoting and variable expansion"
+      - "BusyBox/Toybox compatibility"
+      - "board command restrictions"
+      - "avoid board-side awk/tr"
+      - "GT/OBS separation"
+      - "L0/L1/L2 boundaries"
+      - "NET subtype boundaries"
+      - "validator impact"
+      - "recovery gate semantics"
+      - "validation adequacy"
+    stop_conditions:
+      - "Review requires modifying files."
+      - "Review requires unapproved board, HDC, SSH, server, app-server, or real collection access."
+      - "Patch cannot be reviewed because TaskSpec scope or diff is missing."
+    escalation_rules:
+      - "Escalate to adversarial_reviewer for high-risk semantic surfaces."
+      - "Escalate to repairer only when a specific actionable finding is accepted for repair."
+    claude_assist_policy: "allowed_for_second_reading_or_long_context_review_no_execution"
+
+  - role_id: "adversarial_reviewer"
+    purpose: "Read-only adversarial review mode for high-risk semantics and cross-surface behavior."
+    backend_agent: "project-reviewer"
+    review_mode: "adversarial"
+    allowed_task_types:
+      - "implementation"
+      - "review-only"
+      - "dataset"
+      - "validation-only"
+    write_permission: "none"
+    write_scope_source: "not_applicable_read_only"
+    allowed_paths:
+      - "TaskSpec.allowed_paths for inspection only"
+      - "TaskSpec.read_only"
+      - "git diff under active task scope"
+    forbidden_paths:
+      - ".git/**"
+      - "storage/runs/** unless TaskSpec explicitly scopes validation-only evidence review"
+      - "dataset/raw/**"
+      - "models/**"
+      - "checkpoints/**"
+      - "unscoped generated data directories"
+    allowed_tools:
+      - "read_file"
+      - "list_files"
+      - "search_text"
+      - "git_status"
+      - "git_diff_read_only"
+      - "TaskSpec-approved read-only validation commands"
+    forbidden_tools:
+      - "apply_patch"
+      - "file_write"
+      - "git_add"
+      - "git_commit"
+      - "hdc"
+      - "ssh"
+      - "scp"
+      - "app_server"
+      - "collection_runner"
+    board_access: "forbidden"
+    server_access: "forbidden"
+    max_repair_depth: 0
+    requires_human_gate: false
+    requires_review_after: false
+    output_contract:
+      required_sections:
+        - "Critical"
+        - "High"
+        - "Medium"
+        - "Low"
+        - "Semantic boundary assessment"
+        - "Recommended fix order"
+    high_risk_surfaces:
+      - "state machine"
+      - "protocol"
+      - "trigger/lock/cooldown/stage flow"
+      - "recovery logic"
+      - "recovery gate"
+      - "GT/OBS"
+      - "L0/L1/L2"
+      - "accepted semantics"
+      - "subtype boundary"
+      - "action recommendation safety gate"
+    stop_conditions:
+      - "Review requires modifying files."
+      - "Review requires unapproved board, HDC, SSH, server, app-server, or real collection access."
+      - "Evidence requires generated data directories outside TaskSpec scope."
+      - "Semantic boundary is ambiguous enough to require human decision."
+    escalation_rules:
+      - "Escalate to human if GT/OBS relabeling, accepted semantics, or subtype boundary changes are proposed."
+      - "Escalate to repairer only for one concrete bounded finding."
+    claude_assist_policy: "allowed_for_independent_second_reading_no_execution_no_auto_loop"
+
+  - role_id: "validator"
+    purpose: "Run only TaskSpec-approved validation commands and report results without repair."
+    backend_agent: null
+    review_mode: "none"
+    allowed_task_types:
+      - "validation-only"
+      - "implementation"
+      - "documentation"
+      - "scaffold"
+      - "dataset"
+    write_permission: "forbidden"
+    write_scope_source: "TaskSpec.validation.validation_commands only"
+    allowed_paths:
+      - "TaskSpec.allowed_paths for validation reads"
+      - ".codex-harness/** when validating harness"
+    forbidden_paths:
+      - ".git/**"
+      - "storage/runs/** unless TaskSpec explicitly scopes read-only validation"
+      - "dataset/raw/** unless TaskSpec explicitly scopes read-only validation"
+      - "dataset/l0/** unless TaskSpec explicitly scopes read-only validation"
+      - "dataset/l1/** unless TaskSpec explicitly scopes read-only validation"
+      - "dataset/l2/** unless TaskSpec explicitly scopes read-only validation"
+      - "models/**"
+      - "checkpoints/**"
+      - "generated collection output directories unless explicitly authorized"
+    allowed_tools:
+      - "TaskSpec.validation.validation_commands"
+      - "git_status"
+      - "git_diff_read_only"
+    forbidden_tools:
+      - "apply_patch"
+      - "file_write"
+      - "git_add"
+      - "git_commit"
+      - "hdc unless TaskSpec and human gate authorize"
+      - "ssh unless TaskSpec and human gate authorize"
+      - "scp unless TaskSpec and human gate authorize"
+      - "app_server"
+      - "collection_runner unless TaskSpec and human gate authorize"
+      - "automatic_repair"
+    board_access: "requires_human_gate"
+    server_access: "requires_human_gate"
+    max_repair_depth: 0
+    requires_human_gate: true
+    requires_review_after: false
+    output_contract:
+      required_sections:
+        - "Commands run"
+        - "RESULT"
+        - "Failed criteria"
+        - "Warnings"
+        - "Evidence summary"
+        - "Next fix"
+    stop_conditions:
+      - "Validation command is not explicitly allowed by TaskSpec."
+      - "Validation would write to forbidden data directories."
+      - "Validation requires board, HDC, SSH, server, app-server, or real collection access without human gate."
+      - "Validation failure would require automatic repair."
+    escalation_rules:
+      - "Escalate to repairer only after human or TaskRouter accepts a specific bounded fix."
+      - "Escalate to adversarial_reviewer if validation touches high-risk semantic surfaces."
+    claude_assist_policy: "allowed_to_read_validation_summary_only_no_command_execution"
+
+  - role_id: "repairer"
+    purpose: "Perform one targeted repair for a concrete validation failure or reviewer finding."
+    backend_agent: "project-repairer"
+    review_mode: "targeted-repair"
+    allowed_task_types:
+      - "implementation"
+      - "documentation"
+      - "scaffold"
+    write_permission: "scoped"
+    write_scope_source: "Original TaskSpec.write_allowed plus active PathLease only"
+    allowed_paths:
+      - "Original TaskSpec.write_allowed"
+      - "Original TaskSpec.allowed_paths"
+      - "active PathLease.write_allowed"
+    forbidden_paths:
+      - ".git/**"
+      - "storage/runs/**"
+      - "dataset/raw/**"
+      - "dataset/l0/**"
+      - "dataset/l1/**"
+      - "dataset/l2/**"
+      - "models/**"
+      - "checkpoints/**"
+      - "files outside original write scope"
+      - "untracked business scripts until baseline commit is confirmed"
+    allowed_tools:
+      - "read_file"
+      - "search_text"
+      - "apply_patch"
+      - "same validation command that failed when safe and TaskSpec-approved"
+      - "git_status"
+      - "git_diff_read_only"
+    forbidden_tools:
+      - "git_add"
+      - "git_commit"
+      - "git_reset_hard"
+      - "git_clean"
+      - "hdc unless TaskSpec and human gate authorize"
+      - "ssh unless TaskSpec and human gate authorize"
+      - "scp unless TaskSpec and human gate authorize"
+      - "app_server"
+      - "collection_runner unless TaskSpec and human gate authorize"
+    board_access: "requires_human_gate"
+    server_access: "requires_human_gate"
+    max_repair_depth: 1
+    absolute_max_repair_depth: 2
+    requires_human_gate: true
+    requires_review_after: true
+    output_contract:
+      required_sections:
+        - "Repair depth"
+        - "Trigger"
+        - "Failed command or review finding"
+        - "Hypothesis"
+        - "Files touched"
+        - "Patch summary"
+        - "Re-validation"
+        - "Result"
+    stop_conditions:
+      - "Repair requires files outside original write scope."
+      - "Repair requires changing TaskSpec scope."
+      - "Repair requires changing accepted semantics, GT/OBS, L0/L1/L2, or subtype boundaries without explicit authorization."
+      - "Repair depth would exceed 1 by default or 2 absolute maximum."
+      - "Repair requires board, HDC, SSH, server, app-server, or real collection access without human gate."
+    escalation_rules:
+      - "Escalate to human after failed default repair depth 1."
+      - "Stop absolutely after repair depth 2."
+      - "Escalate to adversarial_reviewer if repair touches high-risk semantic surfaces."
+    claude_assist_policy: "allowed_for_hypothesis_review_or_second_reading_no_execution_no_auto_loop"
+

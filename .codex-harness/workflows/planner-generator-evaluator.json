@@ -1,0 +1,38 @@
+{
+  "schema_version": "codex-harness.workflow_pattern.v1",
+  "pattern_name": "planner-generator-evaluator",
+  "role_flow": "planner -> generator -> evaluator",
+  "dependency_graph": {
+    "planner": [],
+    "generator": ["planner"],
+    "evaluator": ["generator"]
+  },
+  "gate_role": "evaluator",
+  "aggregation_pass_rule": "planner, generator, and evaluator are captured, deterministic links are resolved, and evaluator has top-level RESULT: PASS",
+  "roles": [
+    {
+      "id": "planner",
+      "agent_type": "project-explorer",
+      "required": true,
+      "result_file": "01_planner_result.md",
+      "depends_on": [],
+      "prompt_template": "Plan the scoped work, identify constraints and acceptance gates, and do not edit files."
+    },
+    {
+      "id": "generator",
+      "agent_type": "project-implementer",
+      "required": true,
+      "result_file": "02_generator_result.md",
+      "depends_on": ["planner"],
+      "prompt_template": "Generate the scoped artifact or no-op confirmation according to the planner constraints."
+    },
+    {
+      "id": "evaluator",
+      "agent_type": "project-reviewer",
+      "required": true,
+      "result_file": "03_evaluator_result.md",
+      "depends_on": ["generator"],
+      "prompt_template": "Evaluate the generated artifact against acceptance gates and report top-level RESULT: PASS only if no blocking issue remains."
+    }
+  ]
+}

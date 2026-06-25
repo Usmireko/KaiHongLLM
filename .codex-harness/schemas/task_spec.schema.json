@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codex-harness.task_spec.p0",
+  "title": "Codex Harness P0 TaskSpec",
+  "type": "object",
+  "required": [
+    "schema",
+    "version",
+    "task",
+    "intent",
+    "scope",
+    "paths",
+    "limits",
+    "validation",
+    "review"
+  ],
+  "properties": {
+    "schema": {
+      "const": "codex-harness.task_spec.p0"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "task": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "risk_level",
+        "stage",
+        "trigger",
+        "lock",
+        "cooldown"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "risk_level": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "stage": {
+          "type": "string"
+        },
+        "trigger": {
+          "type": "string"
+        },
+        "lock": {
+          "type": "string"
+        },
+        "cooldown": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "intent": {
+      "type": "object",
+      "required": [
+        "objective",
+        "task_type"
+      ],
+      "properties": {
+        "objective": {
+          "type": "string"
+        },
+        "task_type": {
+          "enum": [
+            "implementation",
+            "validation-only",
+            "review-only",
+            "collection",
+            "dataset",
+            "documentation",
+            "scaffold"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "scope": {
+      "type": "object",
+      "required": [
+        "in_scope",
+        "out_of_scope"
+      ],
+      "properties": {
+        "in_scope": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "out_of_scope": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "paths": {
+      "type": "object",
+      "required": [
+        "allowed_paths",
+        "forbidden_paths"
+      ],
+      "properties": {
+        "allowed_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbidden_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "contains": {
+            "enum": [
+              ".git/**",
+              "storage/runs/**",
+              "dataset/raw/**"
+            ]
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "limits": {
+      "type": "object",
+      "required": [
+        "max_repair_depth"
+      ],
+      "properties": {
+        "max_repair_depth": {
+          "type": "integer",
+          "maximum": 3
+        }
+      },
+      "additionalProperties": true
+    },
+    "validation": {
+      "type": "object",
+      "required": [
+        "validation_commands"
+      ],
+      "properties": {
+        "validation_commands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "review": {
+      "type": "object",
+      "required": [
+        "codex_audit_required"
+      ],
+      "properties": {
+        "codex_audit_required": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

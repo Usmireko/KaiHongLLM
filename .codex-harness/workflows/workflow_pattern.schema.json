@@ -1,0 +1,35 @@
+{
+  "schema_version": "codex-harness.workflow_pattern.schema.v1",
+  "required_fields": [
+    "pattern_name",
+    "roles",
+    "dependency_graph",
+    "gate_role",
+    "aggregation_pass_rule"
+  ],
+  "role_required_fields": [
+    "id",
+    "agent_type",
+    "required",
+    "result_file",
+    "depends_on",
+    "prompt_template"
+  ],
+  "role_optional_fields": [
+    "aliases"
+  ],
+  "manifest_finalization": {
+    "input": "expected_workflow.template.json",
+    "output": "expected_workflow.json",
+    "required_mappings": "Every required role must receive exactly one concrete call_id.",
+    "mapping_sources": [
+      "--call-id role=call_xxx",
+      "--call-id-map call_ids.json"
+    ]
+  },
+  "notes": [
+    "Patterns describe parent-Codex native subagent orchestration only.",
+    "The Python runner prepares prompts/templates and later captures/aggregates logs.",
+    "The Python runner must not directly call native spawn_agent."
+  ]
+}
