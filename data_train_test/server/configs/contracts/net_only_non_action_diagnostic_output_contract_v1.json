@@ -1,0 +1,161 @@
+{
+  "schema_version": "net_only_non_action_diagnostic_output_contract_v1",
+  "scope": {
+    "family": "net",
+    "tasks": [
+      "diagnosis",
+      "evidence_extraction",
+      "cause_vs_symptom"
+    ],
+    "non_action_only": true,
+    "cpu_mem_gt_allowed": false,
+    "action_after_diagnosis_allowed": false
+  },
+  "allowed_net_subtypes": [
+    "net_dns_fail",
+    "net_gateway_unreachable",
+    "net_no_default_route",
+    "net_no_ipv4_on_iface",
+    "net_public_ip_unreachable",
+    "net_wifi_disconnect",
+    "net_wrong_default_route"
+  ],
+  "global_forbidden_keys": [
+    "action",
+    "actions",
+    "actions_device",
+    "action_after_diagnosis",
+    "recovery",
+    "recovery_steps",
+    "recovery_action",
+    "remediation",
+    "repair",
+    "command",
+    "commands",
+    "shell",
+    "fix"
+  ],
+  "global_forbidden_semantics": [
+    "Do not output recovery commands, mitigation steps, rollback steps, or board actions.",
+    "Do not promote OBS fields to GT labels.",
+    "Do not use CPU/MEM labels as GT for this NET-only contract.",
+    "Do not echo input-only OBS score fields as prediction labels."
+  ],
+  "tasks": {
+    "diagnosis": {
+      "required_fields": {
+        "diagnosis_summary": "string",
+        "gt": "object",
+        "gt.family": "string:eq:net",
+        "gt.subtype": "string:net_subtype",
+        "gt_obs_separated": "boolean:true"
+      },
+      "optional_fields": {
+        "gt.confidence": "string",
+        "gt.is_anomaly": "boolean",
+        "gt.run_kind": "string",
+        "gt.severity": "string"
+      },
+      "forbidden_top_level_keys": [
+        "diagnosis",
+        "obs",
+        "input",
+        "case_id",
+        "evidence",
+        "primary_family",
+        "primary_subtype",
+        "cause_eids",
+        "symptom_eids"
+      ],
+      "semantic_correctness": [
+        "gt.family must equal gold gt.family.",
+        "gt.subtype must equal gold gt.subtype.",
+        "diagnosis_summary must describe the NET GT label while preserving GT/OBS separation."
+      ]
+    },
+    "evidence_extraction": {
+      "required_fields": {
+        "primary_evidence": "array:evidence_item",
+        "secondary_evidence": "array:evidence_item",
+        "symptom_evidence": "array:evidence_item",
+        "noise_evidence": "array:evidence_item"
+      },
+      "optional_fields": {},
+      "forbidden_top_level_keys": [
+        "diagnosis",
+        "gt",
+        "gt_obs_separated",
+        "obs",
+        "input",
+        "case_id",
+        "primary_family",
+        "primary_subtype",
+        "cause_eids",
+        "symptom_eids",
+        "evidence"
+      ],
+      "evidence_item_required_fields": [
+        "eid"
+      ],
+      "evidence_item_allowed_fields": [
+        "eid",
+        "kind",
+        "score",
+        "source",
+        "source_rel",
+        "span",
+        "support_role",
+        "text",
+        "ts"
+      ],
+      "semantic_correctness": [
+        "Predicted evidence EIDs must match gold evidence EIDs.",
+        "Evidence role arrays must preserve primary, secondary, symptom, and noise separation.",
+        "Evidence text is OBS evidence only and must not replace GT labels."
+      ]
+    },
+    "cause_vs_symptom": {
+      "required_fields": {
+        "primary_family": "string:eq:net",
+        "primary_subtype": "string:net_subtype",
+        "cause_eids": "array:string",
+        "symptom_eids": "array:string",
+        "gt_obs_separated": "boolean:true"
+      },
+      "optional_fields": {
+        "judgement_text": "string",
+        "primary_processes": "array"
+      },
+      "forbidden_top_level_keys": [
+        "diagnosis",
+        "gt",
+        "obs",
+        "input",
+        "case_id",
+        "evidence",
+        "primary_evidence",
+        "secondary_evidence",
+        "symptom_evidence",
+        "noise_evidence"
+      ],
+      "semantic_correctness": [
+        "primary_family and primary_subtype must match gold primary cause.",
+        "cause_eids must match gold primary cause evidence IDs.",
+        "symptom_eids must match gold symptom evidence IDs.",
+        "OBS primary_family/state must not be promoted to primary cause."
+      ]
+    }
+  },
+  "reporting_layers": [
+    "json_parse_success",
+    "target_schema_compliance",
+    "semantic_metric_eligibility",
+    "semantic_correctness",
+    "hard_gt_obs_leak",
+    "soft_gt_obs_risk",
+    "action_or_recovery_leak",
+    "cpu_mem_input_contamination",
+    "cpu_mem_prediction_echo",
+    "cpu_mem_metric_false_positive"
+  ]
+}
